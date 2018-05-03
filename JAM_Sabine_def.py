@@ -467,7 +467,34 @@ def mainCall_modular(GalName, Input_path, JAM_path, Model = 'gNFW', SLUGGS = Tru
   pos_afterBurn, prob, state = sampler.run_mcmc(pos, burnSteps)
   sampler.reset()
   
-  outputMCMC = sampler.run_mcmc(pos_afterBurn, stepNumber) # uses the final position of the burn-in period as the starting point. 
+  suffix = ''
+  if SLUGGS:
+    suffix = suffix + 'SLUGGS_'
+  if ATLAS:
+    suffix = suffix + 'ATLAS_'
+  if GC:
+    suffix = suffix + 'GC_'
+  suffix = suffix + 'FreeParam-'+str(ndim)
+
+  if not os.path.exists(JAM_path+'/'+str(GalName)): 
+    os.mkdir(JAM_path+'/'+str(GalName))
+
+  if not os.path.exists(JAM_path+'/'+str(GalName)+'/'+suffix): 
+    os.mkdir(JAM_path+'/'+str(GalName)+'/'+suffix)
+
+  OutputFilename = JAM_path+'/'+str(GalName)+'/'+suffix+'/'+str(GalName)+'_MCMCOutput_'+suffix+'.dat'
+  
+  stepsBetweenIterations = stepNumber / 100
+  iterationNumber = stepNumber / stepsBetweenIterations
+
+  import pickle
+
+  for iteration in range(iterationNumber):
+    pos_afterBurn, prob, state = sampler.run_mcmc(pos_afterBurn, stepsBetweenIterations) # uses the final position of the burn-in period as the starting point. 
+    fileOut = open(OutputFilename, 'wb')
+    pickle.dump([sampler.chain, sampler.flatchain, sampler.lnprobability, sampler.flatlnprobability], fileOut)
+    fileOut.close()
+    print 'Number of steps completed:', (iteration+1)*stepsBetweenIterations, len(sampler.chain[0])
   ######################################################
   
   
@@ -478,19 +505,6 @@ def mainCall_modular(GalName, Input_path, JAM_path, Model = 'gNFW', SLUGGS = Tru
   print 'time elapsed:', float(t)/3600, 'hours'
   print '########################################'
   print 'Mean acceptance fraction: ', (np.mean(sampler.acceptance_fraction))
-  suffix = ''
-  if SLUGGS:
-    suffix = suffix + 'SLUGGS_'
-  if Photometry:
-    suffix = suffix + 'ATLAS_'
-  if GC:
-    suffix = suffix + 'GC_'
-  suffix = suffix + 'FreeParam-'+str(ndim)
-
-  if not os.path.exists(JAM_path+'/'+str(GalName)+'/'+suffix): 
-    os.mkdir(JAM_path+'/'+str(GalName)+'/'+suffix)
-
-  OutputFilename = JAM_path+'/'+str(GalName)+'/'+suffix+'/'+str(GalName)+'_MCMCOutput_'+suffix+'.dat'
   print 'output filename: ', OutputFilename
 
   fileOut = open(OutputFilename, 'wb')

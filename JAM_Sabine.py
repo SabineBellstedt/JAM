@@ -50,6 +50,7 @@ JAM_path = DropboxDirectory+'Dropbox/PhD_Analysis/Analysis/JAM_Modular'
 Model = 'gNFW' # either gNFW or powerLaw
 SLUGGS = True
 ATLAS = True
+GC = False
 
 Inclination = True
 Beta = True
@@ -59,10 +60,11 @@ ML = False
 
 SluggsWeight = True
 AtlasWeight = True
+GCWeight = False
 
-OutputFilename, ParamSymbol, ParameterNames, Data  = mainCall_modular(GalName, Input_path, JAM_path, Model, SLUGGS, ATLAS, \
-  Inclination, Beta, Gamma, ScaleDensity, ML, SluggsWeight, AtlasWeight, \
-  nwalkers = 2000, burnSteps = 1000, stepNumber = 2000)
+OutputFilename, ParamSymbol, ParameterNames, Data  = mainCall_modular(GalName, Input_path, JAM_path, Model, SLUGGS, ATLAS, GC, \
+  Inclination, Beta, Gamma, ScaleDensity, ML, SluggsWeight, AtlasWeight, GCWeight, \
+  nwalkers = 50, burnSteps = 10, stepNumber = 2000)
 
 
 # now to directly analyse the output
