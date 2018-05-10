@@ -57,13 +57,14 @@ Beta = True
 Gamma = True
 ScaleDensity = True
 ML = False
+ScaleRadius = False
 
 SluggsWeight = True
 AtlasWeight = True
 GCWeight = False
 
 OutputFilename, ParamSymbol, ParameterNames, Data  = mainCall_modular(GalName, Input_path, JAM_path, Model, SLUGGS, ATLAS, GC, \
-  Inclination, Beta, Gamma, ScaleDensity, ML, SluggsWeight, AtlasWeight, GCWeight, \
+  Inclination, Beta, Gamma, ScaleDensity, ML, ScaleRadius, SluggsWeight, AtlasWeight, GCWeight, \
   nwalkers = 50, burnSteps = 10, stepNumber = 2000)
 
 

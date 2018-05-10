@@ -59,14 +59,14 @@ def lnprior(theta, *args):
     return -np.inf
 
 def lnprob(theta, *args):
-  boundaries, ParameterNames, Data, model, mbh, distance, reff, filename, surf_lum, sigma_lum, qobs_lum, R_S = args
+  boundaries, ParameterNames, Data, model, mbh, distance, reff, filename, surf_lum, sigma_lum, qobs_lum = args
 
   lp = lnprior(theta, boundaries)
   if not np.isfinite(lp):
       return -np.inf
-  return lp + lnlike(theta, ParameterNames, Data, model, mbh, distance, reff, filename, surf_lum, sigma_lum, qobs_lum, R_S) #In logarithmic space, the multiplication becomes sum.
+  return lp + lnlike(theta, ParameterNames, Data, model, mbh, distance, reff, filename, surf_lum, sigma_lum, qobs_lum) #In logarithmic space, the multiplication becomes sum.
 
-def lnlike(theta, ParameterNames, Data, model, mbh, distance, reff, filename, surf_lum, sigma_lum, qobs_lum, R_S):
+def lnlike(theta, ParameterNames, Data, model, mbh, distance, reff, filename, surf_lum, sigma_lum, qobs_lum):
   ParameterNames = np.array(ParameterNames)
 
   if 'Inclination' in ParameterNames:
@@ -93,6 +93,11 @@ def lnlike(theta, ParameterNames, Data, model, mbh, distance, reff, filename, su
     ml = np.array(theta)[np.where(ParameterNames == 'ML')]
   else:
     ml = 1
+
+  if 'ScaleRadius' in ParameterNames:
+    R_S = np.array(theta)[np.where(ParameterNames == 'ScaleRadius')]
+  else:
+    R_S = 20000
 
   if len(Data) == 4:
     if 'AtlasWeight' in ParameterNames:
@@ -335,7 +340,8 @@ def InitialWalkerPosition(WalkerNumber, LowerBounds, UpperBounds, PriorType):
   return InitialPosition, Boundaries
 
 def mainCall_modular(GalName, Input_path, JAM_path, Model = 'gNFW', SLUGGS = True, ATLAS = True, GC = False,\
-  Inclination = True, Beta = True, Gamma = True, ScaleDensity = True, ML = False, SluggsWeight = False, AtlasWeight = False, GCWeight = False, \
+  Inclination = True, Beta = True, Gamma = True, ScaleDensity = True, ML = False, ScaleRadius = False, \
+  SluggsWeight = False, AtlasWeight = False, GCWeight = False, \
   nwalkers = 2000, burnSteps = 1000, stepNumber = 4000):
 
   MGE = MGE_Source[GalName]
@@ -356,8 +362,8 @@ def mainCall_modular(GalName, Input_path, JAM_path, Model = 'gNFW', SLUGGS = Tru
     print 'No black hole mass specified for', GalName
   distance = distMpc[GalName]
   reff = Reff_Spitzer[GalName] * (distance * 1e6) / 206265 # defining the effective radius in pc. 
-  R_S = 20000 # leaving the input scale radius in parsec. 
-  print 'Break radius (arcseconds):', R_S
+  # R_S = 20000 # leaving the input scale radius in parsec. 
+  # print 'Break radius (arcseconds):', R_S
   
   
   t0 = time.time()
@@ -431,6 +437,13 @@ def mainCall_modular(GalName, Input_path, JAM_path, Model = 'gNFW', SLUGGS = Tru
     PriorType.append('uniform')
     ParameterNames.append('ML')
     ParamSymbol.append(r"$M/L$")
+  if ScaleRadius: # inclination 
+    ndim += 1
+    LowerBounds.append(10000)
+    UpperBounds.append(40000)
+    PriorType.append('uniform')
+    ParameterNames.append('ScaleRadius')
+    ParamSymbol.append(r"$R_S$")
 
   if SluggsWeight:
     ndim += 1
@@ -460,7 +473,7 @@ def mainCall_modular(GalName, Input_path, JAM_path, Model = 'gNFW', SLUGGS = Tru
   import emcee
   sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,
                     args=(boundaries, ParameterNames, Data, Model, mbh, distance,
-                         reff, filename, surf_lum, sigma_lum, qobs_lum, R_S),
+                         reff, filename, surf_lum, sigma_lum, qobs_lum),
                     threads=16) #Threads gives the number of processors to use
   
   ############ implementing a burn-in period ###########
