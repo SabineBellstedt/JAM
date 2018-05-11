@@ -63,8 +63,10 @@ SluggsWeight = True
 AtlasWeight = True
 GCWeight = False
 
+FisedStellarMass = False
+
 OutputFilename, ParamSymbol, ParameterNames, Data  = mainCall_modular(GalName, Input_path, JAM_path, Model, SLUGGS, ATLAS, GC, \
-  Inclination, Beta, Gamma, ScaleDensity, ML, ScaleRadius, SluggsWeight, AtlasWeight, GCWeight, \
+  Inclination, Beta, Gamma, ScaleDensity, ML, ScaleRadius, SluggsWeight, AtlasWeight, GCWeight, FixedStellarMass,\
   nwalkers = 50, burnSteps = 10, stepNumber = 2000)
 
 

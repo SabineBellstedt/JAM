@@ -59,14 +59,14 @@ def lnprior(theta, *args):
     return -np.inf
 
 def lnprob(theta, *args):
-  boundaries, ParameterNames, Data, model, mbh, distance, reff, filename, surf_lum, sigma_lum, qobs_lum = args
+  boundaries, ParameterNames, Data, model, mbh, distance, FixedStellarMass, logStellarMass, reff, filename, surf_lum, sigma_lum, qobs_lum = args
 
   lp = lnprior(theta, boundaries)
   if not np.isfinite(lp):
       return -np.inf
-  return lp + lnlike(theta, ParameterNames, Data, model, mbh, distance, reff, filename, surf_lum, sigma_lum, qobs_lum) #In logarithmic space, the multiplication becomes sum.
+  return lp + lnlike(theta, ParameterNames, Data, model, mbh, distance, FixedStellarMass, logStellarMass, reff, filename, surf_lum, sigma_lum, qobs_lum) #In logarithmic space, the multiplication becomes sum.
 
-def lnlike(theta, ParameterNames, Data, model, mbh, distance, reff, filename, surf_lum, sigma_lum, qobs_lum):
+def lnlike(theta, ParameterNames, Data, model, mbh, distance, FixedStellarMass, logStellarMass, reff, filename, surf_lum, sigma_lum, qobs_lum):
   ParameterNames = np.array(ParameterNames)
 
   if 'Inclination' in ParameterNames:
@@ -91,6 +91,12 @@ def lnlike(theta, ParameterNames, Data, model, mbh, distance, reff, filename, su
 
   if 'ML' in ParameterNames:
     ml = np.array(theta)[np.where(ParameterNames == 'ML')]
+  elif FixedStellarMass:
+    # calculate here what the M/L should be in order for the total luminous MGE to account for 
+    # all measured stellar mass. 
+    sigma_lum_pc = sigma_lum  * (distance * 1e6) / 206265 # since the input sigma_lum is in arcseconds. 
+    StellarMassMGE = MGE_mass_total(surf_lum, sigma_lum_pc, qobs_lum, 1000*reff, radian(inc), 1)
+    ml = 10**logStellarMass / StellarMassMGE 
   else:
     ml = 1
 
@@ -134,7 +140,7 @@ def lnlike(theta, ParameterNames, Data, model, mbh, distance, reff, filename, su
   x_MGE = np.logspace(np.log10(1), np.log10(30000), n_MGE)                    # the units of the density are now mass/pc^2
 
   if model == 'gNFW':
-    y_MGE = gNFW_RelocatedDensity(R_S/20, x_MGE, 10.**log_rho_s, R_S, gamma)    
+    y_MGE = gNFW_RelocatedDensity(1000, x_MGE, 10.**log_rho_s, R_S, gamma)    # measured at 1 kpc (1000 pc)
     p = mge.mge_fit_1d(x_MGE, y_MGE, ngauss=10, quiet=True)
     
     surf_dm = p.sol[0]                                # here implementing a potential
@@ -176,7 +182,7 @@ def lnlike(theta, ParameterNames, Data, model, mbh, distance, reff, filename, su
                      surf_lum, sigma_lum, qobs_lum, surf_pot,
                      sigma_pot, qobs_pot,
                      inc, mbh, distance,
-                     xbin2, ybin2, filename, #ml,
+                     xbin2, ybin2, filename, 
                      rms=rms2, erms=erms2,
                       plot=False, beta=beta_array, 
                      tensor='zz', quiet=True)
@@ -202,7 +208,7 @@ def lnlike(theta, ParameterNames, Data, model, mbh, distance, reff, filename, su
                      surf_lum, sigma_lum, qobs_lum, surf_pot,
                      sigma_pot, qobs_pot,
                      inc, mbh, distance,
-                     xbin2, ybin2, filename, #ml,
+                     xbin2, ybin2, filename, 
                      rms=rms2, erms=erms2,
                       plot=False, beta=beta_array, 
                      tensor='zz', quiet=True)
@@ -212,7 +218,7 @@ def lnlike(theta, ParameterNames, Data, model, mbh, distance, reff, filename, su
                      surf_lum, sigma_lum, qobs_lum, surf_pot,
                      sigma_pot, qobs_pot,
                      inc, mbh, distance,
-                     xbin3, ybin3, filename, #ml,
+                     xbin3, ybin3, filename,
                      rms=rms3, erms=erms3,
                       plot=False, beta=beta_array, 
                      tensor='zz', quiet=True)
@@ -341,7 +347,7 @@ def InitialWalkerPosition(WalkerNumber, LowerBounds, UpperBounds, PriorType):
 
 def mainCall_modular(GalName, Input_path, JAM_path, Model = 'gNFW', SLUGGS = True, ATLAS = True, GC = False,\
   Inclination = True, Beta = True, Gamma = True, ScaleDensity = True, ML = False, ScaleRadius = False, \
-  SluggsWeight = False, AtlasWeight = False, GCWeight = False, \
+  SluggsWeight = False, AtlasWeight = False, GCWeight = False, FixedStellarMass = False, \
   nwalkers = 2000, burnSteps = 1000, stepNumber = 4000):
 
   MGE = MGE_Source[GalName]
@@ -362,6 +368,7 @@ def mainCall_modular(GalName, Input_path, JAM_path, Model = 'gNFW', SLUGGS = Tru
     print 'No black hole mass specified for', GalName
   distance = distMpc[GalName]
   reff = Reff_Spitzer[GalName] * (distance * 1e6) / 206265 # defining the effective radius in pc. 
+  logStellarMass = M_star_Spitzer[GalName]
   # R_S = 20000 # leaving the input scale radius in parsec. 
   # print 'Break radius (arcseconds):', R_S
   
@@ -398,6 +405,11 @@ def mainCall_modular(GalName, Input_path, JAM_path, Model = 'gNFW', SLUGGS = Tru
 
 
   min_inclination = degree(np.arccos(np.min(qobs_lum))) # using the MGE to calculate the minimum possible inclination 
+
+  if FixedStellarMass:
+    if ML:
+      ML = False
+      print 'Free M/L has been set to false to fix stellar mass to observed stellar mass. '
  
   ndim = 0
   LowerBounds, UpperBounds, PriorType, ParameterNames, ParamSymbol = [], [], [], [], []
@@ -472,7 +484,7 @@ def mainCall_modular(GalName, Input_path, JAM_path, Model = 'gNFW', SLUGGS = Tru
   # Setup MCMC sampler
   import emcee
   sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,
-                    args=(boundaries, ParameterNames, Data, Model, mbh, distance,
+                    args=(boundaries, ParameterNames, Data, Model, mbh, distance, FixedStellarMass, logStellarMass,
                          reff, filename, surf_lum, sigma_lum, qobs_lum),
                     threads=16) #Threads gives the number of processors to use
   
@@ -487,6 +499,8 @@ def mainCall_modular(GalName, Input_path, JAM_path, Model = 'gNFW', SLUGGS = Tru
     suffix = suffix + 'ATLAS_'
   if GC:
     suffix = suffix + 'GC_'
+  if FixedStellarMass:
+    suffix = suffix + 'FixedM*_'
   suffix = suffix + 'FreeParam-'+str(ndim)
 
   if not os.path.exists(JAM_path+'/'+str(GalName)): 
