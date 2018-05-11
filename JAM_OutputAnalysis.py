@@ -24,8 +24,9 @@ Input_path = 'InputFiles/Original'
 
 model = 'gNFW'
 
-Galaxies = ['NGC821', 'NGC1023', 'NGC2549', 'NGC2699', 'NGC2768', 'NGC2974', 'NGC3377', 'NGC3379', 'NGC4111'\
-, 'NGC4278', 'NGC4459', 'NGC4473', 'NGC4474', 'NGC4494', 'NGC4551', 'NGC4526', 'NGC4649', 'NGC4697', 'NGC5866', 'NGC7457']
+# Galaxies = ['NGC821', 'NGC1023', 'NGC2549', 'NGC2699', 'NGC2768', 'NGC2974', 'NGC3377', 'NGC3379', 'NGC4111'\
+# , 'NGC4278', 'NGC4459', 'NGC4473', 'NGC4474', 'NGC4494', 'NGC4551', 'NGC4526', 'NGC4649', 'NGC4697', 'NGC5866', 'NGC7457']
+Galaxies = ['NGC2699']
 
 for GalName in Galaxies:
 	MGE = MGE_Source[GalName]
@@ -134,9 +135,15 @@ for GalName in Galaxies:
 								ml = Value[np.where(ParameterNames == 'ML')][0]
 								mlUpper = UpperErr[np.where(ParameterNames == 'ML')]
 								mlLower = LowerErr[np.where(ParameterNames == 'ML')]
+							elif FixedStellarMass:
+								# calculate here what the M/L should be in order for the total luminous MGE to account for 
+								# all measured stellar mass. 
+								sigma_lum_pc = sigma_lum  * (distance * 1e6) / 206265 # since the input sigma_lum is in arcseconds. 
+								StellarMassMGE = MGE_mass_total(surf_lum, sigma_lum_pc, qobs_lum, 1000*Reff, radian(inc), 1)
+								ml = 10**M_star_Spitzer[GalName] / StellarMassMGE 
 							else:
 								ml = 1
-	
+
 							n_MGE = 300.
 							x_MGE = np.logspace(np.log10(1), np.log10(30000), n_MGE) # logarithmically spaced radii
 	
@@ -170,7 +177,7 @@ for GalName in Galaxies:
 	
 							jamFigureFilename = JAM_path+'/'+str(GalName)+'/'+suffix+'/'+str(GalName)+'_'+suffix+'_Fig'
 	
-							rmsModel, ml, chi2, flux = Jrms.jam_axi_rms(
+							rmsModel, ml_JAM, chi2, flux = Jrms.jam_axi_rms(
 							             surf_lum, sigma_lum, qobs_lum, surf_tot,
 							             sigma_tot_arcsec, qobs_tot,
 							             inc, mbh, distance,
@@ -196,7 +203,7 @@ for GalName in Galaxies:
 								fractionDM = DM_mass_Re / TotalMass_Re
 	
 								# I need to calculate the total density profile here. 
-								TotalStellarDensityProfile  = ml * MGE_deprojector(Radius_MassProfile, surf_lum, sigma_lum_pc, qobs_lum, radian(inc), ml)
+								TotalStellarDensityProfile  = MGE_deprojector(Radius_MassProfile, surf_lum, sigma_lum_pc, qobs_lum, radian(inc), ml)
 								DeprojectedDMProfile = MGE_deprojector(Radius_MassProfile, surf_dm, sigma_dm_pc, qobs_dm)
 								TotalDensityProfile = TotalStellarDensityProfile + DeprojectedDMProfile
 	
@@ -220,7 +227,7 @@ for GalName in Galaxies:
 								surf_dm_upper = p.sol[0]                               
 								sigma_dm_upper = p.sol[1]                              
 								qobs_dm_upper = np.ones(len(surf_dm_upper)) 
-								TotalDensityProfile_ErrorAnalysisUpper = ml * MGE_deprojector(Radius_MassProfile, surf_lum, sigma_lum_pc, qobs_lum, radian(inc - incLower), ml)\
+								TotalDensityProfile_ErrorAnalysisUpper = MGE_deprojector(Radius_MassProfile, surf_lum, sigma_lum_pc, qobs_lum, radian(inc - incLower), ml)\
 								 + MGE_deprojector(Radius_MassProfile, surf_dm_upper, sigma_dm_upper, qobs_dm_upper)
 							
 								y_MGE = gNFW_RelocatedDensity(1000, x_MGE, 10.**log_rho_s, R_S, gamma-gammaLower)	
@@ -231,7 +238,7 @@ for GalName in Galaxies:
 								surf_dm_lower = p.sol[0]                               
 								sigma_dm_lower = p.sol[1]                              
 								qobs_dm_lower = np.ones(len(surf_dm_lower)) 
-								TotalDensityProfile_ErrorAnalysisLower = ml * MGE_deprojector(Radius_MassProfile, surf_lum, sigma_lum_pc, qobs_lum, radian(inc + incUpper), ml)\
+								TotalDensityProfile_ErrorAnalysisLower = MGE_deprojector(Radius_MassProfile, surf_lum, sigma_lum_pc, qobs_lum, radian(inc + incUpper), ml)\
 								 + MGE_deprojector(Radius_MassProfile, surf_dm_lower, sigma_dm_lower, qobs_dm_lower)
 							
 							
@@ -291,6 +298,11 @@ for GalName in Galaxies:
 								FinalValues = [FittedGamma1, FittedGamma2, FittedGamma3, fractionDM, np.log10(TotalStellarMass), np.log10(TotalMass)]
 								Lower = [FittedGamma1ErrLower, FittedGamma2ErrLower, FittedGamma3ErrLower, 0.0, 0.0, 0.0]
 								Upper = [FittedGamma1ErrUpper, FittedGamma2ErrUpper, FittedGamma3ErrUpper, 0.0, 0.0, 0.0]
+								if FixedStellarMass:
+									ParameterNames.append('M/L')
+									FinalValues.append(np.round(ml, 2))
+									Lower.append(0.0)
+									Upper.append(0.0)
 								X = np.zeros(np.array(ParameterNames).size, dtype=[('params', 'U22'), ('values', float), ('lower', float), ('upper', float)])
 								X['params'] = np.array(ParameterNames)
 								X['values'] = np.array(FinalValues)
